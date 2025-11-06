@@ -1,0 +1,34 @@
+/build
+# Gradle
+.gradle/
+**/build/
+local.properties
+.gradle/
+captures/
+.externalNativeBuild/
+
+# Android/IDE
+.idea/
+*.iml
+
+# Keystores / secrets (never commit!)
+**/*.keystore
+**/*.jks
+keystore.properties
+
+# Google configs (decide yourself)
+# If public repo, avoid committing:
+google-services.json
+GoogleService-Info.plist
+
+# Logs
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# AAR/Archives (usually ignore; if needed use LFS)
+*.apk
+*.aab
+*.aar
