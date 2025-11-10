@@ -10,6 +10,8 @@ It provides students and teachers a unified space for managing study groups, tra
 This project demonstrates the complete implementation of a real-time, AI-enhanced collaboration platform using Jetpack Compose and modern Android architecture components.  
 It focuses on simplifying academic communication, automating reminders, and promoting focused learning sessions.
 
+
+Project Demo: https://drive.google.com/file/d/1M3x0XT4WMTNnC1SaD1DtTrfV4OiB3vVF/view?usp=sharing
 ---
 
 ## Features
