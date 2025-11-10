@@ -1,131 +1,134 @@
-# RunAnywhere SDK - Simple Chat App
+# ClassConnect - Intelligent Student Collaboration Platform
 
-A simple Android chat application demonstrating the RunAnywhere SDK for on-device AI inference.
+**ClassConnect** is a modern Android application designed to enhance classroom productivity, collaboration, and focus.  
+It provides students and teachers a unified space for managing study groups, tracking progress, and improving learning efficiency through intelligent insights.
 
-## What This App Does
+---
 
-This is a minimal example showing how to:
+## Overview
 
-1. Initialize the RunAnywhere SDK
-2. Download AI models (LLMs)
-3. Load models into memory
-4. Run text generation with streaming responses
+This project demonstrates the complete implementation of a real-time, AI-enhanced collaboration platform using Jetpack Compose and modern Android architecture components.  
+It focuses on simplifying academic communication, automating reminders, and promoting focused learning sessions.
+
+---
 
 ## Features
 
-- **Model Management**: Download and load AI models directly in the app
-- **Real-time Streaming**: See AI responses generate word-by-word
-- **Simple UI**: Clean Jetpack Compose interface
-- **On-Device AI**: All inference runs locally on your Android device
+- **Group Management:** Create and manage study groups efficiently.  
+- **Task Dashboard:** Track assignments, progress, and deadlines in real time.  
+- **Focus Mode:** Reduce distractions and monitor study sessions.  
+- **Reminder System:** Intelligent notifications for tasks and meetings.  
+- **Real-time Communication:** Seamless message exchange among peers.  
+- **Data Security:** Local storage and secure authentication for user data.  
+- **Modern UI:** Clean Material 3 design with adaptive layout for all screen sizes.
 
-## Quick Start
+---
 
-### 1. Build and Run
+## Architecture Overview
 
+MyApplication (App initialization)
+↓
+SessionManager (Authentication & preferences)
+↓
+DashboardViewModel / GroupViewModel (state management)
+↓
+Composable Screens (UI)
+
+markdown
+Copy code
+
+- **MVVM Architecture:** Ensures separation of UI and logic.  
+- **Jetpack Compose:** Declarative UI components for responsive design.  
+- **Kotlin Coroutines:** Handles asynchronous background tasks.  
+- **Navigation Component:** Simplifies screen transitions.  
+- **Firebase / Local DB (optional):** For user authentication and data storage.
+
+---
+
+## Installation
+
+### 1. Clone the Repository
 ```bash
+git clone https://github.com/Priyanka-Khasa/ClassConnect.git
+2. Open in Android Studio
+Open the project in Android Studio (version 2023.1 or above).
+
+Allow Gradle to sync automatically.
+
+3. Build and Run
+bash
+Copy code
 ./gradlew assembleDebug
-# Or open in Android Studio and click Run
-```
+# or directly click "Run" in Android Studio
+Project Structure
+Directory / File	Purpose
+app/	Main Android application module
+ui/	Jetpack Compose UI components
+viewmodel/	Application state management
+data/	Local and remote data handling
+SessionManager.kt	Handles authentication and user preferences
+Dashboard.kt	Displays main group and task interface
+build.gradle	Dependency and SDK configuration
 
-### 2. Download a Model
+Technical Stack
+Language: Kotlin
 
-1. Launch the app
-2. Tap "Models" in the top bar
-3. Choose a model (we recommend starting with "SmolLM2 360M Q8_0" - only 119 MB)
-4. Tap "Download" and wait for it to complete
+Framework: Jetpack Compose, AndroidX
 
-### 3. Load the Model
+Architecture: MVVM (Model-View-ViewModel)
 
-1. Once downloaded, tap "Load" on the model
-2. Wait for "Model loaded! Ready to chat." message
+Database: Room / Firebase Realtime Database
 
-### 4. Start Chatting!
+Dependency Injection: Hilt (if configured)
 
-1. Type a message in the text field
-2. Tap "Send"
-3. Watch the AI response generate in real-time
+Version Control: Git & GitHub
 
-## Available Models
+IDE: Android Studio
 
-The app comes pre-configured with two models:
+Requirements
+Android 8.0 (API 26) or higher
 
-| Model | Size | Quality | Best For |
-|-------|------|---------|----------|
-| SmolLM2 360M Q8_0 | 119 MB | Basic | Testing, quick responses |
-| Qwen 2.5 0.5B Instruct Q6_K | 374 MB | Better | General conversations |
+At least 200 MB free storage
 
-## Technical Details
+Internet connection for sync and collaboration features
 
-### SDK Components Used
+Troubleshooting
+Build Issues
+Ensure correct Android SDK and Compose compiler versions.
 
-- **RunAnywhere Core SDK**: Component architecture and model management
-- **LlamaCpp Module**: Optimized llama.cpp inference engine with 7 ARM64 variants
-- **Kotlin Coroutines**: For async operations and streaming
+Clean and rebuild the project using:
 
-### Architecture
+bash
+Copy code
+./gradlew clean build
+Gradle Sync Errors
+Verify Gradle and Kotlin versions match project configuration.
 
-```
-MyApplication (initialization)
-    ↓
-ChatViewModel (state management)
-    ↓
-ChatScreen (UI layer)
-```
+Delete .gradle and build folders and re-sync.
 
-### Key Files
+Login or Data Issues
+Check Firebase/Database configuration.
 
-- `MyApplication.kt` - SDK initialization and model registration
-- `ChatViewModel.kt` - Business logic and state management
-- `MainActivity.kt` - UI components and composables
+Ensure network connectivity and valid credentials.
 
-## Requirements
+Future Enhancements
+AI-based focus analytics dashboard
 
-- Android 7.0 (API 24) or higher
-- ~200 MB free storage (for smallest model)
-- Internet connection (for downloading models)
+Smart task recommendations
 
-## Troubleshooting
+Cloud sync across devices
 
-### Models not showing up
+Integration with college ERP systems
 
-- Wait a few seconds for SDK initialization
-- Tap "Refresh" in the Models section
-- Check logcat for initialization errors
+Author
+Priyanka Khasa
+B.Tech Electronics and Communication Engineering
+Developer & Innovator | Haryana, India
+LinkedIn | GitHub
 
-### Download fails
+License
+This project is licensed under the MIT License.
+You may freely use, modify, and distribute this software under the stated conditions.
 
-- Check internet connection
-- Ensure sufficient storage space
-- Verify INTERNET permission in AndroidManifest.xml
-
-### App crashes during generation
-
-- Try the smaller model (SmolLM2 360M)
-- Close other apps to free memory
-- Check that `largeHeap="true"` is set in AndroidManifest.xml
-
-### Generation is slow
-
-- This is normal for on-device inference
-- Smaller models run faster
-- Performance depends on device CPU
-
-## Next Steps
-
-Want to customize this app? Try:
-
-1. **Add more models** - Edit `MyApplication.kt` → `registerModels()`
-2. **Customize UI** - Edit `MainActivity.kt` compose functions
-3. **Add system prompts** - Modify message format in `ChatViewModel.kt`
-4. **Persist chat history** - Add Room database or DataStore
-5. **Add model parameters** - Explore temperature, top-k, top-p settings
-
-## Resources
-
-- [Full Quick Start Guide](app/src/main/java/com/runanywhere/startup_hackathon20/QUICK_START_ANDROID.md)
-- [RunAnywhere SDK Repository](https://github.com/RunanywhereAI/runanywhere-sdks)
-- [SDK Documentation](https://github.com/RunanywhereAI/runanywhere-sdks/blob/main/CLAUDE.md)
-
-## License
 
 This example app follows the license of the RunAnywhere SDK.
