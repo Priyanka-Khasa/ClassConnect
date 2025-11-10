@@ -8,7 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,25 +39,33 @@ fun ProfileSetupScreen(navController: NavController) {
         }
     }
 
-    // 🧠 Form State - FIX: Use immutable state for collections
+    // Form State
     var name by remember { mutableStateOf("") }
     var department by remember { mutableStateOf("") }
     var year by remember { mutableStateOf("") }
     var college by remember { mutableStateOf("") }
     var bio by remember { mutableStateOf("") }
-    var selectedSkills by remember { mutableStateOf(setOf<String>()) } // FIX: Use Set instead of MutableList
+    var selectedSkills by remember { mutableStateOf(setOf<String>()) }
     var selectedTime by remember { mutableStateOf("Evening") }
 
-    // 🌈 Static Gradient Background (simpler approach)
-    val gradientColors = listOf(Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364))
+    // Validation states
+    var showValidationErrors by remember { mutableStateOf(false) }
 
-    // ✨ Simple float animation for button
+    // Premium Gradient Background
+    val gradientColors = listOf(
+        Color(0xFF0C0C1C),
+        Color(0xFF1A1A2E),
+        Color(0xFF16213E),
+        Color(0xFF0F3460)
+    )
+
+    // Animation
     val infiniteTransition = rememberInfiniteTransition()
     val scaleAnim by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 1.05f,
+        targetValue = 1.03f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = FastOutSlowInEasing),
+            animation = tween(1500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         )
     )
@@ -66,20 +74,20 @@ fun ProfileSetupScreen(navController: NavController) {
         modifier = Modifier
             .fillMaxSize()
             .background(Brush.verticalGradient(gradientColors))
-            .padding(24.dp)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .padding(24.dp)
         ) {
             // Header Section
             HeaderSection()
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
 
-            // 🪟 Glassmorphic Card
+            // Premium Glassmorphic Card
             ProfileFormCard(
                 name = name,
                 department = department,
@@ -88,6 +96,7 @@ fun ProfileSetupScreen(navController: NavController) {
                 bio = bio,
                 selectedSkills = selectedSkills,
                 selectedTime = selectedTime,
+                showValidationErrors = showValidationErrors,
                 onNameChange = { name = it },
                 onDepartmentChange = { department = it },
                 onYearChange = { year = it },
@@ -103,17 +112,22 @@ fun ProfileSetupScreen(navController: NavController) {
                 onTimeSelect = { selectedTime = it }
             )
 
-            Spacer(Modifier.height(30.dp))
+            Spacer(Modifier.height(32.dp))
 
-            // 💾 Animated Save Button
+            // Premium Save Button
             SaveButton(
                 scaleAnim = scaleAnim,
                 enabled = name.isNotBlank() && department.isNotBlank(),
                 onClick = {
-                    scope.launch {
-                        sessionManager.setLoginState(true)
-                        navController.navigate("dashboard") {
-                            popUpTo("profileSetup") { inclusive = true }
+                    if (name.isBlank() || department.isBlank()) {
+                        showValidationErrors = true
+                    } else {
+                        showValidationErrors = false
+                        scope.launch {
+                            sessionManager.setLoginState(true)
+                            navController.navigate("dashboard") {
+                                popUpTo("profileSetup") { inclusive = true }
+                            }
                         }
                     }
                 }
@@ -126,18 +140,28 @@ fun ProfileSetupScreen(navController: NavController) {
 
 @Composable
 fun HeaderSection() {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Person,
+            contentDescription = "Profile Setup",
+            modifier = Modifier.size(64.dp),
+            tint = Color(0xFF66CCFF)
+        )
+
         Text(
-            "Set Up Your Profile ✨",
+            "Complete Your Profile",
             color = Color.White,
-            fontSize = 26.sp,
+            fontSize = 28.sp,
             fontWeight = FontWeight.Bold
         )
+
         Text(
-            "Tell us more so ClassConnect can personalize your experience.",
+            "Tell us more about yourself to personalize your learning experience",
             color = Color.White.copy(alpha = 0.7f),
             fontSize = 14.sp,
-            modifier = Modifier.padding(vertical = 8.dp),
             lineHeight = 20.sp,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
@@ -153,6 +177,7 @@ fun ProfileFormCard(
     bio: String,
     selectedSkills: Set<String>,
     selectedTime: String,
+    showValidationErrors: Boolean,
     onNameChange: (String) -> Unit,
     onDepartmentChange: (String) -> Unit,
     onYearChange: (String) -> Unit,
@@ -163,11 +188,16 @@ fun ProfileFormCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.08f)),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0x1AFFFFFF)
+        ),
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
-        Column(Modifier.padding(20.dp)) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
             // Personal Information Section
             PersonalInfoSection(
                 name = name,
@@ -175,6 +205,7 @@ fun ProfileFormCard(
                 year = year,
                 college = college,
                 bio = bio,
+                showValidationErrors = showValidationErrors,
                 onNameChange = onNameChange,
                 onDepartmentChange = onDepartmentChange,
                 onYearChange = onYearChange,
@@ -182,7 +213,10 @@ fun ProfileFormCard(
                 onBioChange = onBioChange
             )
 
-            Spacer(Modifier.height(16.dp))
+            Divider(
+                color = Color.White.copy(alpha = 0.1f),
+                thickness = 1.dp
+            )
 
             // Skills Section
             SkillsSection(
@@ -190,7 +224,10 @@ fun ProfileFormCard(
                 onSkillToggle = onSkillToggle
             )
 
-            Spacer(Modifier.height(16.dp))
+            Divider(
+                color = Color.White.copy(alpha = 0.1f),
+                thickness = 1.dp
+            )
 
             // Study Time Section
             StudyTimeSection(
@@ -208,40 +245,73 @@ fun PersonalInfoSection(
     year: String,
     college: String,
     bio: String,
+    showValidationErrors: Boolean,
     onNameChange: (String) -> Unit,
     onDepartmentChange: (String) -> Unit,
     onYearChange: (String) -> Unit,
     onCollegeChange: (String) -> Unit,
     onBioChange: (String) -> Unit
 ) {
-    Column {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Default.AccountCircle,
+                contentDescription = "Personal Info",
+                tint = Color(0xFF66CCFF),
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                "Personal Information",
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 18.sp
+            )
+        }
+
         ProfileTextField(
             label = "Full Name",
             value = name,
             onChange = onNameChange,
-            isRequired = true
+            isRequired = true,
+            showError = showValidationErrors && name.isBlank(),
+            leadingIcon = Icons.Default.Person
         )
+
         ProfileTextField(
             label = "Department",
             value = department,
             onChange = onDepartmentChange,
-            isRequired = true
+            isRequired = true,
+            showError = showValidationErrors && department.isBlank(),
+            leadingIcon = Icons.Default.School
         )
+
         ProfileTextField(
-            label = "Year (e.g., 2nd Year)",
+            label = "Academic Year",
             value = year,
-            onChange = onYearChange
+            onChange = onYearChange,
+            leadingIcon = Icons.Default.CalendarToday
         )
+
         ProfileTextField(
             label = "College/University",
             value = college,
-            onChange = onCollegeChange
+            onChange = onCollegeChange,
+            leadingIcon = Icons.Default.LocationOn
         )
+
         ProfileTextField(
-            label = "Short Bio",
+            label = "Bio",
             value = bio,
             onChange = onBioChange,
-            singleLine = false
+            singleLine = false,
+            leadingIcon = Icons.Default.Description
         )
     }
 }
@@ -251,11 +321,44 @@ fun SkillsSection(
     selectedSkills: Set<String>,
     onSkillToggle: (String) -> Unit
 ) {
-    Column {
-        Text("Select Your Skills 🎯", color = Color.White, fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(8.dp))
-        val skills = listOf("DSA", "ML", "AI", "IoT", "Web", "Android", "Cloud", "Embedded")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Default.Code,
+                contentDescription = "Skills",
+                tint = Color(0xFF66CCFF),
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                "Technical Skills",
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 18.sp
+            )
+        }
+
+        Text(
+            "Select skills that match your interests",
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 14.sp
+        )
+
+        val skills = listOf(
+            "Data Structures", "Machine Learning", "Artificial Intelligence",
+            "Web Development", "Android Development", "Cloud Computing",
+            "IoT", "Embedded Systems", "Database Management"
+        )
+
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             skills.forEach { skill ->
                 FilterChip(
                     selected = selectedSkills.contains(skill),
@@ -263,14 +366,16 @@ fun SkillsSection(
                     label = {
                         Text(
                             skill,
-                            color = if (selectedSkills.contains(skill)) Color.White else Color.White.copy(alpha = 0.8f)
+                            color = if (selectedSkills.contains(skill)) Color.White else Color.White.copy(alpha = 0.8f),
+                            fontSize = 12.sp
                         )
                     },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFF66CCFF).copy(alpha = 0.6f),
+                        selectedContainerColor = Color(0xFF66CCFF),
                         containerColor = Color.White.copy(alpha = 0.15f),
                         selectedLabelColor = Color.White
-                    )
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 )
             }
         }
@@ -282,25 +387,56 @@ fun StudyTimeSection(
     selectedTime: String,
     onTimeSelect: (String) -> Unit
 ) {
-    Column {
-        Text("Preferred Study Time ⏰", color = Color.White, fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("Morning", "Afternoon", "Evening", "Night").forEach { time ->
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Default.AccessTime,
+                contentDescription = "Study Time",
+                tint = Color(0xFF66CCFF),
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                "Preferred Study Time",
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 18.sp
+            )
+        }
+
+        Text(
+            "When are you most productive?",
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 14.sp
+        )
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            listOf("Mor", "Afte", "Eve", "Nig").forEach { time ->
                 FilterChip(
                     selected = selectedTime == time,
                     onClick = { onTimeSelect(time) },
                     label = {
                         Text(
                             time,
-                            color = if (selectedTime == time) Color.White else Color.White.copy(alpha = 0.8f)
+                            color = if (selectedTime == time) Color.White else Color.White.copy(alpha = 0.8f),
+                            fontSize = 12.sp
                         )
                     },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFF66CCFF).copy(alpha = 0.6f),
+                        selectedContainerColor = Color(0xFF66CCFF),
                         containerColor = Color.White.copy(alpha = 0.15f),
                         selectedLabelColor = Color.White
-                    )
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -313,9 +449,11 @@ fun ProfileTextField(
     value: String,
     onChange: (String) -> Unit,
     isRequired: Boolean = false,
-    singleLine: Boolean = true
+    showError: Boolean = false,
+    singleLine: Boolean = true,
+    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector? = null
 ) {
-    Column(modifier = Modifier.padding(vertical = 6.dp)) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         OutlinedTextField(
             value = value,
             onValueChange = onChange,
@@ -325,22 +463,35 @@ fun ProfileTextField(
                     color = Color.White.copy(alpha = 0.8f)
                 )
             },
+            leadingIcon = if (leadingIcon != null) {
+                {
+                    Icon(
+                        imageVector = leadingIcon,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.6f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            } else null,
             modifier = Modifier.fillMaxWidth(),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.White.copy(alpha = 0.12f),
                 unfocusedContainerColor = Color.White.copy(alpha = 0.08f),
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White.copy(alpha = 0.9f),
-                focusedIndicatorColor = Color(0xFF66CCFF),
-                unfocusedIndicatorColor = Color.White.copy(alpha = 0.4f),
-                cursorColor = Color.White
+                focusedIndicatorColor = if (showError) Color(0xFFFF6B6B) else Color(0xFF66CCFF),
+                unfocusedIndicatorColor = if (showError) Color(0xFFFF6B6B) else Color.White.copy(alpha = 0.4f),
+                cursorColor = Color.White,
+                focusedLabelColor = if (showError) Color(0xFFFF6B6B) else Color(0xFF66CCFF)
             ),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
             shape = RoundedCornerShape(12.dp),
             singleLine = singleLine,
-            maxLines = if (singleLine) 1 else 3
+            maxLines = if (singleLine) 1 else 3,
+            isError = showError
         )
-        if (isRequired && value.isEmpty()) {
+
+        if (showError) {
             Text(
                 "This field is required",
                 color = Color(0xFFFF6B6B),
@@ -361,20 +512,31 @@ fun SaveButton(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(55.dp)
+            .height(58.dp)
             .scale(scaleAnim),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = Color(0xFF66CCFF),
             disabledContainerColor = Color(0xFF66CCFF).copy(alpha = 0.5f)
         ),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 8.dp,
+            pressedElevation = 4.dp
+        ),
         enabled = enabled
     ) {
-        Icon(Icons.Default.Save, contentDescription = null, tint = Color.White)
-        Spacer(Modifier.width(8.dp))
-        Text("Save & Continue", color = Color.White, fontWeight = FontWeight.Bold)
+        Icon(
+            Icons.Default.CheckCircle,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            "Complete Profile & Continue",
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp
+        )
     }
 }
-
-// Add this import at the top if FlowRow is not recognized
-// import androidx.compose.foundation.layout.FlowRow

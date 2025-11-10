@@ -32,6 +32,10 @@ import com.runanywhere.classconnect.ui.workspace.TeamWorkspace
 import kotlinx.coroutines.flow.first
 import androidx.compose.ui.Alignment
 import com.runanywhere.classconnect.ui.timeline.AssignmentTimelineScreen
+import android.content.Intent
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+
 
 
 
@@ -46,7 +50,6 @@ class MainActivity : ComponentActivity() {
                 val sessionManager = remember { SessionManager(context.applicationContext) }
                 val viewModel: ChatViewModel = viewModel()
 
-                // We’ll launch once to get initial login state safely
                 val coroutineScope = rememberCoroutineScope()
                 var startDestination by remember { mutableStateOf<String?>(null) }
 
@@ -57,42 +60,39 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Wait until we know startDestination before drawing NavHost
                 if (startDestination != null) {
                     NavHost(
                         navController = navController,
                         startDestination = startDestination!!
                     ) {
-                        composable("login") {
-                            LoginScreen(navController, sessionManager)
-                        }
-                        composable("dashboard") {
-                            DashboardScreen(navController, sessionManager)
-                        }
+                        composable("login") { LoginScreen(navController, sessionManager) }
+                        composable("dashboard") { DashboardScreen(navController, sessionManager) }
                         composable("timeline") {
                             AssignmentTimelineScreen(
                                 navController = navController,
                                 viewModel = viewModel
                             )
                         }
-                        composable("chat") {
-                            ChatScreen(navController)
+                        composable("chat") { ChatScreen(navController) }
+
+                        composable("focus") {
+                            val context = LocalContext.current
+                            LaunchedEffect(Unit) {
+                                context.startActivity(
+                                    Intent(
+                                        context,
+                                        com.runanywhere.classconnect.ui.focus.FocusModeActivity::class.java
+                                    )
+                                )
+                            }
                         }
-                        composable("profileSetup") {
-                            ProfileSetupScreen(navController)
-                        }
-                        composable("matchmaking") {
-                            MatchmakingScreen(navController)
-                        }
-                        composable("groups") {
-                            GroupDashboard(navController)
-                        }
-                        composable("workspace") {
-                            TeamWorkspace(navController)
-                        }
+
+                        composable("profileSetup") { ProfileSetupScreen(navController) }
+                        composable("matchmaking") { MatchmakingScreen(navController) }
+                        composable("groups") { GroupDashboard(navController) }
+                        composable("workspace") { TeamWorkspace(navController) }
                     }
                 } else {
-                    // Optional loading placeholder while we read DataStore
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
@@ -100,9 +100,26 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    // ✅ Moved inside the MainActivity class
+    override fun onStop() {
+        super.onStop()
+
+        // 🚀 When app is about to close, show daily summary
+        val intent = Intent(
+            this,  // ✅ use 'this' instead of LocalContext
+            com.runanywhere.classconnect.ui.summary.DailySummaryActivity::class.java
+        )
+
+        // ✅ Collect data to send (for now hardcoded demo)
+        intent.putExtra("completed", 5)
+        intent.putExtra("pending", 3)
+
+        startActivity(intent)
+    }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+    @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(navController: androidx.navigation.NavController? = null, viewModel: ChatViewModel = viewModel()) {
     val messages by viewModel.messages.collectAsState()
