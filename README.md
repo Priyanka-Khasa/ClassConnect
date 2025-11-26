@@ -1,136 +1,211 @@
-# ClassConnect - Intelligent Student Collaboration Platform
+ ClassConnect – AI-Enhanced Student Collaboration Platform (2025 Edition)
 
-**ClassConnect** is a modern Android application designed to enhance classroom productivity, collaboration, and focus.  
-It provides students and teachers a unified space for managing study groups, tracking progress, and improving learning efficiency through intelligent insights.
+ClassConnect is an intelligent, modular, real-time Android application that redefines how students collaborate, study, and stay organized.
+Designed using Jetpack Compose + MVVM + Kotlin Coroutines + RunAnywhere SDK, it powers deep focus sessions, AI assistance, group productivity, and smart academic tools in one seamless platform.
 
----
+ Project Demo
 
-## Overview
+https://drive.google.com/file/d/1M3x0XT4WMTNnC1SaD1DtTrfV4OiB3vVF/view?usp=sharing
 
-This project demonstrates the complete implementation of a real-time, AI-enhanced collaboration platform using Jetpack Compose and modern Android architecture components.  
-It focuses on simplifying academic communication, automating reminders, and promoting focused learning sessions.
+ Key Highlights (Updated)
+ 1. Tools Hub (NEW – 2025)
 
+A beautiful grid of 30+ latest tools for:
 
-Project Demo: https://drive.google.com/file/d/1M3x0XT4WMTNnC1SaD1DtTrfV4OiB3vVF/view?usp=sharing
----
+AI (ChatGPT, Gemini, Claude, RunAnywhere AI)
 
-## Features
+Coding (LeetCode, GFG, HackerRank)
 
-- **Group Management:** Create and manage study groups efficiently.  
-- **Task Dashboard:** Track assignments, progress, and deadlines in real time.  
-- **Focus Mode:** Reduce distractions and monitor study sessions.  
-- **Reminder System:** Intelligent notifications for tasks and meetings.  
-- **Real-time Communication:** Seamless message exchange among peers.  
-- **Data Security:** Local storage and secure authentication for user data.  
-- **Modern UI:** Clean Material 3 design with adaptive layout for all screen sizes.
+ECE (Proteus, MATLAB, LTspice, KiCad)
 
----
+DevOps (Docker, Kubernetes)
+One tap → opens official website.
 
-## Architecture Overview
+ 2. Real-Time Group Collaboration
 
-MyApplication (App initialization)
-↓
-SessionManager (Authentication & preferences)
-↓
-DashboardViewModel / GroupViewModel (state management)
-↓
-Composable Screens (UI)
+Create and manage study groups with a responsive and modern UI.
 
-markdown
-Copy code
+3. Smart Task Dashboard
 
-- **MVVM Architecture:** Ensures separation of UI and logic.  
-- **Jetpack Compose:** Declarative UI components for responsive design.  
-- **Kotlin Coroutines:** Handles asynchronous background tasks.  
-- **Navigation Component:** Simplifies screen transitions.  
-- **Firebase / Local DB (optional):** For user authentication and data storage.
+Track deadlines, assignments, submissions, and class schedules.
 
----
+4. Deep Focus Mode
 
-## Installation
+Distraction-free study sessions with:
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/Priyanka-Khasa/ClassConnect.git
-2. Open in Android Studio
-Open the project in Android Studio (version 2023.1 or above).
+Focus timer
 
-Allow Gradle to sync automatically.
+Leaderboard
 
-3. Build and Run
-bash
-Copy code
-./gradlew assembleDebug
-# or directly click "Run" in Android Studio
-Project Structure
-Directory / File	Purpose
-app/	Main Android application module
-ui/	Jetpack Compose UI components
-viewmodel/	Application state management
-data/	Local and remote data handling
-SessionManager.kt	Handles authentication and user preferences
-Dashboard.kt	Displays main group and task interface
-build.gradle	Dependency and SDK configuration
+Productivity score
+
+ 5. Intelligent Reminders
+
+Notification system for tasks, classes, meetings, and study streaks.
+
+ 6. Real-Time Chat
+
+Secure messaging between peers, groups, and study partners.
+
+7. Personalized Profiles
+
+Profile setup, preferences, dark mode, streak tracking.
+
+ 8. Resume Builder + Review Portal
+
+A modern tool for students to:
+
+Create resumes
+
+Edit sections
+
+Review via AI
+
+Export PDF
+
+ 9. Courses Explorer
+
+Display trending courses, enroll buttons, fake search bar (demo), course cards.
+
+ 10. Job Portal
+
+Latest internships, off-campus opportunities, tech roles.
+
+Architecture Overview (Clean & Modern)
+ClassConnectApp (App initialization)
+     ↓
+SessionManager (User identity & preferences)
+     ↓
+ViewModels (Dashboard, Groups, Chat, Focus, Resume, Tools)
+     ↓
+Composable Screens (UI Layer)
+
+✔ MVVM Architecture
+
+✔ Jetpack Compose UI
+✔ RunAnywhere SDK for on-device AI
+✔ Navigation Component
+✔ Kotlin Coroutines + Flows
+✔ Room / Firebase (optional)
 
 Technical Stack
-Language: Kotlin
+ Languages & Frameworks
 
-Framework: Jetpack Compose, AndroidX
+Kotlin
 
-Architecture: MVVM (Model-View-ViewModel)
+Jetpack Compose
 
-Database: Room / Firebase Realtime Database
+Material 3
 
-Dependency Injection: Hilt (if configured)
+Kotlin Coroutines
 
-Version Control: Git & GitHub
+Retrofit / Ktor Client
 
-IDE: Android Studio
+RunAnywhere On-Device AI SDK
 
-Requirements
-Android 8.0 (API 26) or higher
+ Architecture
 
-At least 200 MB free storage
+MVVM
 
-Internet connection for sync and collaboration features
+Repository Pattern
 
-Troubleshooting
-Build Issues
-Ensure correct Android SDK and Compose compiler versions.
+Navigation Graph
 
-Clean and rebuild the project using:
+ Storage
 
-bash
-Copy code
+Room Database (local)
+
+Firebase Auth (optional)
+
+DataStore Preferences
+
+ Build Tools
+
+Gradle
+
+Kotlinx Serialization
+
+Coil (Images)
+
+ Installation Guide
+ Clone the Repository
+git clone https://github.com/Priyanka-Khasa/ClassConnect.git
+
+ Open in Android Studio
+
+Android Studio 2023.1+
+
+Let Gradle sync fully
+
+ Build & Run
+./gradlew assembleDebug
+
+
+Or simply click Run ▶
+
+ Project Structure
+Folder / File	Purpose
+app/	Main Android module
+ui/	Jetpack Compose screens
+ui/tools/	🔥 Tools Hub
+viewmodels/	All ViewModels
+data/	Local/remote data
+SessionManager.kt	Login state
+DashboardScreen.kt	Main dashboard
+ToolsHubScreen.kt	Tools launcher grid
+ResumeBuilderScreen.kt	Resume Builder
+MainActivity.kt	Navigation Host
+build.gradle	Dependencies
+ Troubleshooting
+ Build Errors
+
+✔ Ensure correct Compose compiler version
+✔ Use jvmTarget = 17
+✔ Clean & rebuild:
+
 ./gradlew clean build
-Gradle Sync Errors
-Verify Gradle and Kotlin versions match project configuration.
 
-Delete .gradle and build folders and re-sync.
+❗ Gradle Sync Issues
 
-Login or Data Issues
-Check Firebase/Database configuration.
+Delete .gradle and build/ folders
 
-Ensure network connectivity and valid credentials.
+Re-import project
 
-Future Enhancements
-AI-based focus analytics dashboard
+❗ Login / Data Issues
 
-Smart task recommendations
+Check Firebase credentials (if enabled)
+
+Internet connectivity
+
+Rebuild the project
+
+ Future Enhancements (Roadmap 2025)
+
+AI-powered focus analytics
+
+Auto-generated study plans
+
+Smart reminders using ML
+
+ERP Integration for colleges
 
 Cloud sync across devices
 
-Integration with college ERP systems
+Leaderboard with XP & Levels
 
-Author
+Advanced resume scoring model
+
+ Author
+
 Priyanka Khasa
-B.Tech Electronics and Communication Engineering
-Developer & Innovator | Haryana, India
-LinkedIn | GitHub
+B.Tech – Electronics & Communication Engineering
+Android Developer | AI Innovator | Open Source Contributor
+Haryana, India
 
-License
+🔗 LinkedIn: add link here
+🔗 GitHub: Priyanka-Khasa
+
+ License
+
 This project is licensed under the MIT License.
-You may freely use, modify, and distribute this software under the stated conditions.
-
-
-This example app follows the license of the RunAnywhere SDK.
+Compatible with RunAnywhere SDK licensing.
