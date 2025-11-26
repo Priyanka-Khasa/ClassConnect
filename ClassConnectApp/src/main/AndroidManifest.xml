@@ -3,13 +3,16 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Permissions -->
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.CAMERA" />
-
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
@@ -17,12 +20,9 @@
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
-    <!-- Feature requirements -->
     <uses-feature
         android:name="android.hardware.microphone"
         android:required="false" />
-
-
 
     <application
         android:name=".MyApplication"
@@ -37,30 +37,41 @@
         android:theme="@style/Theme.Startup_hackathon20"
         tools:targetApi="31">
 
+        <!-- Focus Monitoring Service (Foreground Required) -->
         <service
             android:name=".ui.focus.FocusMonitorService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection|camera|microphone" />
 
+        <!-- Focus Camera -->
         <activity
             android:name=".ui.focus.FocusCameraActivity"
             android:exported="true"
             android:theme="@style/Theme.Startup_hackathon20" />
 
+        <!-- Focus Mode -->
         <activity
             android:name=".ui.focus.FocusModeActivity"
             android:exported="true"
             android:theme="@style/Theme.Startup_hackathon20" />
-        <activity android:name=".ui.summary.DailySummaryActivity" />
 
-
+        <!-- Daily Summary -->
         <activity
-            android:name=".ui.focus.ReminderOverlayActivity"
+            android:name=".ui.summary.DailySummaryActivity"
             android:exported="true"
             android:theme="@style/Theme.Startup_hackathon20" />
 
+        <!-- Overlay Reminder -->
+        <activity
+            android:name=".ui.focus.ReminderOverlayActivity"
+            android:exported="true"
+            android:theme="@style/Theme.TransparentOverlay"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask" />
 
-        <!-- Main Activity - This is your only activity using Compose -->
+        <!-- Main Activity (Compose) -->
         <activity
             android:name=".MainActivity"
             android:exported="true"

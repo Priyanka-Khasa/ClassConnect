@@ -1,329 +1,234 @@
 package com.runanywhere.classconnect.ui.login
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TileMode
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import com.runanywhere.classconnect.util.SessionManager
-import androidx.compose.foundation.Canvas
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @Composable
-fun LoginScreen(navController: NavController, sessionManager: SessionManager) {
-    val scope = rememberCoroutineScope()
-
+fun LoginScreen(
+    navController: NavController,
+    sessionManager: SessionManager
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
     var showPassword by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
 
-    // 🌌 Premium Dark Gradient Background
-    val gradientColors = listOf(
-        Color(0xFF0C0C1C),
-        Color(0xFF1A1A2E),
-        Color(0xFF16213E),
-        Color(0xFF0F3460)
-    )
-
-    val infiniteTransition = rememberInfiniteTransition()
-
-    // Smooth floating animation
-    val floatAnim by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = keyframes {
-                durationMillis = 8000
-                0.0f at 0
-                0.5f at 3000
-                1.0f at 6000
-                0.5f at 7000
-                0.0f at 8000
-            }
-        )
+    val gradientBackground = Brush.verticalGradient(
+        colors = listOf(
+            Color(0xFF0C0C1C),
+            Color(0xFF1A1A2E),
+            Color(0xFF16213E),
+            Color(0xFF0F3460)
+        ),
+        startY = 0f,
+        endY = Float.POSITIVE_INFINITY
     )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.radialGradient(
-                    colors = gradientColors,
-                    center = Offset(0.3f, 0.3f),
-                    radius = 1200f
-                )
-            ),
-        contentAlignment = Alignment.Center
+            .background(gradientBackground)
+            .padding(24.dp)
     ) {
-        // Premium animated background
-        PremiumAnimatedBackground(floatAnim)
-
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(32.dp)
+                .fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // ✨ Premium entrance animation
-            val scale = remember { Animatable(0.7f) }
-            val rotationY = remember { Animatable(-15f) }
-            val alpha = remember { Animatable(0f) }
 
-            LaunchedEffect(Unit) {
-                scale.animateTo(1f, animationSpec = tween(1000, easing = FastOutSlowInEasing))
-                rotationY.animateTo(0f, animationSpec = tween(1200, easing = LinearOutSlowInEasing))
-                alpha.animateTo(1f, animationSpec = tween(800))
-            }
+            // Title
+            Spacer(Modifier.height(40.dp))
+            Text(
+                text = "ClassConnect",
+                color = Color.White,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "Elevate your learning experience",
+                color = Color(0xFFB0BEC5),
+                fontSize = 14.sp
+            )
 
-            // Premium Logo/Title Section
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .scale(scale.value)
-                    .graphicsLayer(
-                        rotationY = rotationY.value,
-                        alpha = alpha.value
-                    )
-                    .padding(bottom = 16.dp)
-            ) {
-                // Animated gradient text
-                Text(
-                    text = "ClassConnect",
-                    style = MaterialTheme.typography.displaySmall.copy(
-                        fontWeight = FontWeight.ExtraBold
-                    ),
-                    color = Color.White,
-                    modifier = Modifier
-                )
+            Spacer(Modifier.height(32.dp))
 
-                Text(
-                    "Elevate Your Learning Experience",
-                    color = Color(0xFF8892B0),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-
-            // 💎 Premium Glassmorphism Login Card
+            // Card
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer {
-                        shadowElevation = 32f
-                        shape = RoundedCornerShape(32.dp)
-                        clip = true
-                    },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0x1AFFFFFF),
-                    contentColor = Color.White
+                    containerColor = Color(0x26FFFFFF)
                 ),
-                shape = RoundedCornerShape(32.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0x26FFFFFF),
-                                    Color(0x0DFFFFFF)
-                                )
-                            )
-                        )
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(
-                        modifier = Modifier.padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+
+                    Text(
+                        text = "Welcome back",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "Sign in to continue your journey",
+                        color = Color(0xFFB0BEC5),
+                        fontSize = 13.sp
+                    )
+
+                    Spacer(Modifier.height(24.dp))
+
+                    // Email
+                    PremiumTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        label = "Email address",
+                        leadingIcon = Icons.Default.Email
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+
+                    // Password
+                    PremiumTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = "Password",
+                        leadingIcon = Icons.Default.Lock,
+                        isPassword = true,
+                        showPassword = showPassword,
+                        onTogglePassword = { showPassword = !showPassword }
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        Text(
-                            "Welcome Back",
-                            style = MaterialTheme.typography.headlineSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        )
-                        Text(
-                            "Continue your journey to excellence",
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = Color(0xFF8892B0)
-                            ),
-                            modifier = Modifier.padding(bottom = 32.dp)
-                        )
-
-                        // 📧 Premium Email Field
-                        PremiumTextField(
-                            value = email,
-                            onValueChange = { email = it },
-                            label = "Email Address",
-                            leadingIcon = Icons.Default.Email,
-                            isPassword = false
-                        )
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        // 🔒 Premium Password Field
-                        PremiumTextField(
-                            value = password,
-                            onValueChange = { password = it },
-                            label = "Password",
-                            leadingIcon = Icons.Default.Lock,
-                            isPassword = true,
-                            showPassword = showPassword,
-                            onTogglePassword = { showPassword = !showPassword }
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // 🔗 Premium Forgot Password
-                        TextButton(
-                            onClick = { /* TODO */ },
-                            modifier = Modifier.align(Alignment.End)
-                        ) {
+                        TextButton(onClick = { /* TODO: forgot password */ }) {
                             Text(
-                                "Forgot Password?",
+                                text = "Forgot password?",
                                 color = Color(0xFF64FFDA),
-                                fontWeight = FontWeight.SemiBold
+                                fontSize = 13.sp
                             )
                         }
+                    }
 
-                        Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(Modifier.height(16.dp))
 
-                        // 🚀 Premium Animated Login Button
-                        val buttonScale by rememberInfiniteTransition().animateFloat(
-                            initialValue = 1f,
-                            targetValue = 1.02f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(2000, easing = FastOutSlowInEasing),
-                                repeatMode = RepeatMode.Reverse
-                            )
-                        )
+                    // Login button
+                    Button(
+                        onClick = {
+                            if (email.isNotBlank() && password.isNotBlank() && !isLoading) {
+                                isLoading = true
 
-                        val buttonGlow by rememberInfiniteTransition().animateFloat(
-                            initialValue = 0f,
-                            targetValue = 1f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(3000, easing = LinearEasing)
-                            )
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(60.dp)
-                                .scale(buttonScale)
-                                .background(
-                                    brush = Brush.linearGradient(
-                                        colors = listOf(
-                                            Color(0xFF667EEA),
-                                            Color(0xFF764BA2),
-                                            Color(0xFF667EEA)
-                                        ),
-                                        start = Offset(buttonGlow * 200f, 0f),
-                                        end = Offset(200f + buttonGlow * 200f, 60f),
-                                        tileMode = TileMode.Repeated
-                                    ),
-                                    shape = RoundedCornerShape(16.dp)
-                                )
-                                .clip(RoundedCornerShape(16.dp))
-                        ) {
-                            Button(
-                                onClick = {
-                                    val isEmailValid = android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
-
-                                    if (!isEmailValid) {
-                                        return@Button
-                                    }
-
-                                    if (email.isNotBlank() && password.isNotBlank()) {
-                                        isLoading = true
-                                        scope.launch {
-                                            delay(1500)
-                                            sessionManager.saveLoginSession(email)
+                                // off-main-thread to be safe if saveLoginSession is suspend
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    try {
+                                        sessionManager.saveLoginSession(email)
+                                    } finally {
+                                        // navigate back on main thread
+                                        CoroutineScope(Dispatchers.Main).launch {
                                             isLoading = false
                                             navController.navigate("profileSetup") {
                                                 popUpTo("login") { inclusive = true }
                                             }
                                         }
                                     }
-                                },
-                                enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
-                                modifier = Modifier
-                                    .fillMaxSize(),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.Transparent,
-                                    contentColor = Color.White
-                                ),
-                                elevation = ButtonDefaults.buttonElevation(
-                                    defaultElevation = 0.dp
-                                )
-                            ) {
-                                if (isLoading) {
-                                    CircularProgressIndicator(
-                                        color = Color.White,
-                                        strokeWidth = 3.dp,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                } else {
-                                    Text(
-                                        "Continue to Profile",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp
-                                    )
                                 }
                             }
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // 👤 Premium Signup Section
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                "New to here? ",
-                                color = Color(0xFF8892B0),
-                                fontWeight = FontWeight.Medium
+                        },
+                        enabled = email.isNotBlank() && password.isNotBlank() && !isLoading,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF667EEA),
+                            disabledContainerColor = Color(0xFF667EEA).copy(alpha = 0.4f)
+                        )
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(22.dp)
                             )
-                            TextButton(
-                                onClick = {
-                                    navController.navigate("profileSetup")
-                                }
-                            ) {
-                                Text(
-                                    "set it",
-                                    color = Color(0xFF64FFDA),
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                        } else {
+                            Text(
+                                text = "Continue",
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    // Signup / profile setup shortcut
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "New here?",
+                            color = Color(0xFFB0BEC5),
+                            fontSize = 13.sp
+                        )
+                        TextButton(onClick = {
+                            navController.navigate("profileSetup")
+                        }) {
+                            Text(
+                                text = "Set up your profile",
+                                color = Color(0xFF64FFDA),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
                     }
                 }
@@ -337,7 +242,7 @@ fun PremiumTextField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
-    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    leadingIcon: ImageVector,
     isPassword: Boolean = false,
     showPassword: Boolean = false,
     onTogglePassword: (() -> Unit)? = null
@@ -346,180 +251,50 @@ fun PremiumTextField(
         value = value,
         onValueChange = onValueChange,
         label = {
-            Text(
-                label,
-                color = Color.White.copy(alpha = 0.8f),
-                fontWeight = FontWeight.Medium
-            )
+            Text(text = label, color = Color.White.copy(alpha = 0.8f))
         },
         leadingIcon = {
             Icon(
-                leadingIcon,
-                null,
-                tint = Color(0xFF64FFDA),
-                modifier = Modifier.size(22.dp)
+                imageVector = leadingIcon,
+                contentDescription = null,
+                tint = Color(0xFF64FFDA)
             )
         },
         trailingIcon = {
             if (isPassword && onTogglePassword != null) {
-                IconButton(
-                    onClick = onTogglePassword,
-                    modifier = Modifier.size(24.dp)
-                ) {
+                IconButton(onClick = onTogglePassword) {
                     Icon(
                         imageVector = if (showPassword)
                             Icons.Default.VisibilityOff
                         else
                             Icons.Default.Visibility,
-                        contentDescription = if (showPassword) "Hide password" else "Show password",
-                        tint = Color.White.copy(alpha = 0.7f)
+                        contentDescription = null,
+                        tint = Color.White
                     )
                 }
             }
         },
         visualTransformation = if (isPassword && !showPassword)
             PasswordVisualTransformation()
-        else
-            VisualTransformation.None,
+        else VisualTransformation.None,
+        singleLine = true,
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                Color(0x15FFFFFF),
-                RoundedCornerShape(16.dp)
+                color = Color(0x1FFFFFFF),
+                shape = RoundedCornerShape(16.dp)
             ),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color(0x1AFFFFFF),
-            unfocusedContainerColor = Color(0x15FFFFFF),
-            focusedIndicatorColor = Color(0xFF64FFDA),
-            unfocusedIndicatorColor = Color(0x66FFFFFF),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Color(0xFF64FFDA),
+            unfocusedBorderColor = Color.White.copy(alpha = 0.4f),
             cursorColor = Color.White,
             focusedTextColor = Color.White,
             unfocusedTextColor = Color.White.copy(alpha = 0.9f),
             focusedLabelColor = Color(0xFF64FFDA),
-            unfocusedLabelColor = Color.White.copy(alpha = 0.6f)
+            unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
+            focusedContainerColor = Color.Transparent,
+            unfocusedContainerColor = Color.Transparent
         ),
-        shape = RoundedCornerShape(16.dp),
-        singleLine = true
+        shape = RoundedCornerShape(16.dp)
     )
-}
-
-@Composable
-fun PremiumAnimatedBackground(floatValue: Float) {
-    // Floating particles effect
-    val particleColors = listOf(
-        Color(0x1564FFDA), // Teal
-        Color(0x15667EEA), // Purple
-        Color(0x15FF6B6B)  // Coral
-    )
-
-    val particleData = listOf(
-        Triple(0.1f, 0.2f, 120.dp),
-        Triple(0.7f, 0.8f, 80.dp),
-        Triple(0.4f, 0.3f, 150.dp),
-        Triple(0.9f, 0.1f, 100.dp),
-        Triple(0.2f, 0.9f, 60.dp)
-    )
-
-    // Background grid/lines effect
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val width = size.width
-        val height = size.height
-
-        // Draw subtle grid
-        for (i in 0..10) {
-            val x = width * i / 10
-            val y = height * i / 10
-
-            drawLine(
-                color = Color(0x0AFFFFFF),
-                start = Offset(x, 0f),
-                end = Offset(x, height),
-                strokeWidth = 1f
-            )
-            drawLine(
-                color = Color(0x0AFFFFFF),
-                start = Offset(0f, y),
-                end = Offset(width, y),
-                strokeWidth = 1f
-            )
-        }
-    }
-
-    // Floating particles
-    particleData.forEachIndexed { index, (startX, startY, size) ->
-        val movement = (floatValue * 50f).dp
-        val color = particleColors[index % particleColors.size]
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .offset(
-                    x = (startX * 400 - 200).dp + movement,
-                    y = (startY * 400 - 200).dp + movement * (if (index % 2 == 0) 1f else -1f)
-                )
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(size)
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(color, Color.Transparent),
-                            center = Offset(0.5f, 0.5f),
-                            radius = 0.8f
-                        ),
-                        shape = CircleShape
-                    )
-                    .blur(8.dp)
-            )
-        }
-    }
-
-    // Animated gradient orbs
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .offset(x = (-100).dp, y = (-100).dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(300.dp)
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(Color(0x15667EEA), Color.Transparent),
-                        center = Offset(0.3f, 0.3f),
-                        radius = 300f
-                    ),
-                    shape = CircleShape
-                )
-                .offset(
-                    x = (floatValue * 40).dp,
-                    y = (floatValue * 30).dp
-                )
-                .blur(16.dp)
-        )
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .offset(x = 300.dp, y = 500.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(250.dp)
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(Color(0x1564FFDA), Color.Transparent),
-                        center = Offset(0.7f, 0.7f),
-                        radius = 250f
-                    ),
-                    shape = CircleShape
-                )
-                .offset(
-                    x = (floatValue * -20).dp,
-                    y = (floatValue * 40).dp
-                )
-                .blur(16.dp)
-        )
-    }
 }

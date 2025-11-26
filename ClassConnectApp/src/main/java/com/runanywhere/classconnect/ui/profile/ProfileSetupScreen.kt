@@ -1,45 +1,70 @@
 package com.runanywhere.classconnect.ui.profile
 
-import androidx.compose.animation.core.*
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import kotlinx.coroutines.launch
+import com.runanywhere.classconnect.model.UserProfile
+import com.runanywhere.classconnect.util.SessionManager
+import coil.compose.rememberAsyncImagePainter
+import androidx.compose.foundation.Image
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileSetupScreen(navController: NavController) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
-    // Simple session manager for demo
-    val sessionManager = remember {
-        object {
-            fun setLoginState(loggedIn: Boolean) {
-                // Demo implementation
-            }
-        }
-    }
-
-    // Form State
+fun ProfileSetupScreen(
+    navController: NavController,
+    sessionManager: SessionManager
+) {
+    // ------------------ FORM STATE ------------------
     var name by remember { mutableStateOf("") }
     var department by remember { mutableStateOf("") }
     var year by remember { mutableStateOf("") }
@@ -47,11 +72,23 @@ fun ProfileSetupScreen(navController: NavController) {
     var bio by remember { mutableStateOf("") }
     var selectedSkills by remember { mutableStateOf(setOf<String>()) }
     var selectedTime by remember { mutableStateOf("Evening") }
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
 
-    // Validation states
+    // Validation + loading
     var showValidationErrors by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
 
-    // Premium Gradient Background
+    // Pending profile for safe side-effect
+    var pendingProfile by remember { mutableStateOf<UserProfile?>(null) }
+
+    // Image Picker
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { imageUri = it }
+    }
+
+    // Background Gradient (premium but static)
     val gradientColors = listOf(
         Color(0xFF0C0C1C),
         Color(0xFF1A1A2E),
@@ -59,16 +96,22 @@ fun ProfileSetupScreen(navController: NavController) {
         Color(0xFF0F3460)
     )
 
-    // Animation
-    val infiniteTransition = rememberInfiniteTransition()
-    val scaleAnim by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.03f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
+    // ✅ Stable side-effect for saving + navigation (no animation)
+    LaunchedEffect(pendingProfile) {
+        val profileToSave = pendingProfile ?: return@LaunchedEffect
+        isLoading = true
+        try {
+            sessionManager.saveUserProfile(profileToSave)
+            navController.navigate("dashboard") {
+                popUpTo("profileSetup") { inclusive = true }
+            }
+        } catch (e: Exception) {
+            // Could show a snackbar / error text later
+            isLoading = false
+        } finally {
+            pendingProfile = null
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -82,12 +125,10 @@ fun ProfileSetupScreen(navController: NavController) {
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp)
         ) {
-            // Header Section
             HeaderSection()
 
             Spacer(Modifier.height(24.dp))
 
-            // Premium Glassmorphic Card
             ProfileFormCard(
                 name = name,
                 department = department,
@@ -96,6 +137,7 @@ fun ProfileSetupScreen(navController: NavController) {
                 bio = bio,
                 selectedSkills = selectedSkills,
                 selectedTime = selectedTime,
+                imageUri = imageUri,
                 showValidationErrors = showValidationErrors,
                 onNameChange = { name = it },
                 onDepartmentChange = { department = it },
@@ -109,31 +151,51 @@ fun ProfileSetupScreen(navController: NavController) {
                         selectedSkills + skill
                     }
                 },
-                onTimeSelect = { selectedTime = it }
+                onTimeSelect = { selectedTime = it },
+                onImagePick = { imagePickerLauncher.launch("image/*") }
             )
 
             Spacer(Modifier.height(32.dp))
 
-            // Premium Save Button
+            // Save Button – sets pendingProfile, actual work in LaunchedEffect
             SaveButton(
-                scaleAnim = scaleAnim,
-                enabled = name.isNotBlank() && department.isNotBlank(),
+                enabled = name.isNotBlank() && department.isNotBlank() && !isLoading,
                 onClick = {
                     if (name.isBlank() || department.isBlank()) {
                         showValidationErrors = true
-                    } else {
+                    } else if (!isLoading) {
                         showValidationErrors = false
-                        scope.launch {
-                            sessionManager.setLoginState(true)
-                            navController.navigate("dashboard") {
-                                popUpTo("profileSetup") { inclusive = true }
-                            }
-                        }
+                        pendingProfile = UserProfile(
+                            name = name,
+                            department = department,
+                            year = year,
+                            college = college,
+                            bio = bio,
+                            skills = selectedSkills.toList(),
+                            time = selectedTime,
+                            imageUri = imageUri?.toString() ?: ""
+                        )
                     }
                 }
             )
 
             Spacer(Modifier.height(20.dp))
+        }
+
+        // Loading overlay
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.7f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Color.White)
+                    Spacer(Modifier.height(16.dp))
+                    Text("Saving Profile...", color = Color.White)
+                }
+            }
         }
     }
 }
@@ -163,7 +225,7 @@ fun HeaderSection() {
             color = Color.White.copy(alpha = 0.7f),
             fontSize = 14.sp,
             lineHeight = 20.sp,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = TextAlign.Center
         )
     }
 }
@@ -177,6 +239,7 @@ fun ProfileFormCard(
     bio: String,
     selectedSkills: Set<String>,
     selectedTime: String,
+    imageUri: Uri?,
     showValidationErrors: Boolean,
     onNameChange: (String) -> Unit,
     onDepartmentChange: (String) -> Unit,
@@ -184,7 +247,8 @@ fun ProfileFormCard(
     onCollegeChange: (String) -> Unit,
     onBioChange: (String) -> Unit,
     onSkillToggle: (String) -> Unit,
-    onTimeSelect: (String) -> Unit
+    onTimeSelect: (String) -> Unit,
+    onImagePick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -198,7 +262,11 @@ fun ProfileFormCard(
             modifier = Modifier.padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Personal Information Section
+            ProfileImagePicker(
+                imageUri = imageUri,
+                onImagePicked = onImagePick
+            )
+
             PersonalInfoSection(
                 name = name,
                 department = department,
@@ -213,27 +281,84 @@ fun ProfileFormCard(
                 onBioChange = onBioChange
             )
 
-            Divider(
+            HorizontalDivider(
                 color = Color.White.copy(alpha = 0.1f),
                 thickness = 1.dp
             )
 
-            // Skills Section
             SkillsSection(
                 selectedSkills = selectedSkills,
                 onSkillToggle = onSkillToggle
             )
 
-            Divider(
+            HorizontalDivider(
                 color = Color.White.copy(alpha = 0.1f),
                 thickness = 1.dp
             )
 
-            // Study Time Section
             StudyTimeSection(
                 selectedTime = selectedTime,
                 onTimeSelect = onTimeSelect
             )
+        }
+    }
+}
+
+@Composable
+fun ProfileImagePicker(
+    imageUri: Uri?,
+    onImagePicked: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(100.dp)
+                .clip(CircleShape)
+                .background(
+                    if (imageUri != null) Color(0xFF66CCFF).copy(alpha = 0.3f)
+                    else Color(0xFF66CCFF).copy(alpha = 0.1f),
+                    CircleShape
+                )
+                .border(2.dp, Color(0xFF66CCFF), CircleShape)
+        ) {
+            if (imageUri != null) {
+                Image(
+                    painter = rememberAsyncImagePainter(imageUri),
+                    contentDescription = "Profile Image",
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Profile Placeholder",
+                    modifier = Modifier.size(60.dp),
+                    tint = Color.White.copy(alpha = 0.6f)
+                )
+            }
+
+        }
+
+        Button(
+            onClick = onImagePicked,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF66CCFF)
+            ),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(
+                Icons.Default.AddAPhoto,
+                contentDescription = "Add Photo",
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text("Add Profile Picture")
         }
     }
 }
@@ -355,28 +480,38 @@ fun SkillsSection(
             "IoT", "Embedded Systems", "Database Management"
         )
 
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        Column(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            skills.forEach { skill ->
-                FilterChip(
-                    selected = selectedSkills.contains(skill),
-                    onClick = { onSkillToggle(skill) },
-                    label = {
-                        Text(
-                            skill,
-                            color = if (selectedSkills.contains(skill)) Color.White else Color.White.copy(alpha = 0.8f),
-                            fontSize = 12.sp
+            skills.chunked(3).forEach { rowSkills ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    rowSkills.forEach { skill ->
+                        FilterChip(
+                            selected = selectedSkills.contains(skill),
+                            onClick = { onSkillToggle(skill) },
+                            label = {
+                                Text(
+                                    skill,
+                                    color = if (selectedSkills.contains(skill))
+                                        Color.White
+                                    else
+                                        Color.White.copy(alpha = 0.8f),
+                                    fontSize = 12.sp
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF66CCFF),
+                                containerColor = Color.White.copy(alpha = 0.15f),
+                                selectedLabelColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
                         )
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFF66CCFF),
-                        containerColor = Color.White.copy(alpha = 0.15f),
-                        selectedLabelColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                )
+                    }
+                }
             }
         }
     }
@@ -419,14 +554,17 @@ fun StudyTimeSection(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            listOf("Mor", "Afte", "Eve", "Nig").forEach { time ->
+            listOf("Morning", "Afternoon", "Evening", "Night").forEach { time ->
                 FilterChip(
                     selected = selectedTime == time,
                     onClick = { onTimeSelect(time) },
                     label = {
                         Text(
                             time,
-                            color = if (selectedTime == time) Color.White else Color.White.copy(alpha = 0.8f),
+                            color = if (selectedTime == time)
+                                Color.White
+                            else
+                                Color.White.copy(alpha = 0.8f),
                             fontSize = 12.sp
                         )
                     },
@@ -451,7 +589,7 @@ fun ProfileTextField(
     isRequired: Boolean = false,
     showError: Boolean = false,
     singleLine: Boolean = true,
-    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector? = null
+    leadingIcon: ImageVector? = null
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         OutlinedTextField(
@@ -463,28 +601,31 @@ fun ProfileTextField(
                     color = Color.White.copy(alpha = 0.8f)
                 )
             },
-            leadingIcon = if (leadingIcon != null) {
+            leadingIcon = leadingIcon?.let {
                 {
                     Icon(
-                        imageVector = leadingIcon,
+                        imageVector = it,
                         contentDescription = null,
                         tint = Color.White.copy(alpha = 0.6f),
                         modifier = Modifier.size(20.dp)
                     )
                 }
-            } else null,
+            },
             modifier = Modifier.fillMaxWidth(),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.White.copy(alpha = 0.12f),
-                unfocusedContainerColor = Color.White.copy(alpha = 0.08f),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = if (showError) Color(0xFFFF6B6B) else Color(0xFF66CCFF),
+                unfocusedBorderColor = if (showError) Color(0xFFFF6B6B) else Color.White.copy(alpha = 0.4f),
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White.copy(alpha = 0.9f),
-                focusedIndicatorColor = if (showError) Color(0xFFFF6B6B) else Color(0xFF66CCFF),
-                unfocusedIndicatorColor = if (showError) Color(0xFFFF6B6B) else Color.White.copy(alpha = 0.4f),
                 cursorColor = Color.White,
-                focusedLabelColor = if (showError) Color(0xFFFF6B6B) else Color(0xFF66CCFF)
+                focusedLabelColor = if (showError) Color(0xFFFF6B6B) else Color(0xFF66CCFF),
+                unfocusedLabelColor = Color.White.copy(alpha = 0.8f),
+                focusedContainerColor = Color.White.copy(alpha = 0.08f),
+                unfocusedContainerColor = Color.White.copy(alpha = 0.08f)
             ),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                keyboardType = KeyboardType.Text
+            ),
             shape = RoundedCornerShape(12.dp),
             singleLine = singleLine,
             maxLines = if (singleLine) 1 else 3,
@@ -504,7 +645,6 @@ fun ProfileTextField(
 
 @Composable
 fun SaveButton(
-    scaleAnim: Float,
     enabled: Boolean,
     onClick: () -> Unit
 ) {
@@ -512,16 +652,11 @@ fun SaveButton(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(58.dp)
-            .scale(scaleAnim),
+            .height(58.dp),
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = Color(0xFF66CCFF),
             disabledContainerColor = Color(0xFF66CCFF).copy(alpha = 0.5f)
-        ),
-        elevation = ButtonDefaults.buttonElevation(
-            defaultElevation = 8.dp,
-            pressedElevation = 4.dp
         ),
         enabled = enabled
     ) {
@@ -540,3 +675,4 @@ fun SaveButton(
         )
     }
 }
+

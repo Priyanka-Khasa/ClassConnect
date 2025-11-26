@@ -5,7 +5,10 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.*
+import androidx.camera.core.CameraSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.*
@@ -21,298 +24,130 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
-import kotlinx.coroutines.delay
+import androidx.camera.core.ExperimentalGetImage
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
+@OptIn(ExperimentalGetImage::class)
 class FocusCameraActivity : ComponentActivity() {
 
-    private val cameraExecutor = Executors.newSingleThreadExecutor()
-    private var focusLostCount = 0
-    private var focusStatus = mutableStateOf("Analyzing...")
-    private var isFocused = mutableStateOf(false)
+    private lateinit var cameraExecutor: ExecutorService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        cameraExecutor = Executors.newSingleThreadExecutor()
+
         setContent {
             FocusCameraTheme {
-                CameraPreviewUI(focusStatus, isFocused)
+                FocusCameraScreen()
             }
         }
     }
 
-    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun CameraPreviewUI(focusStatus: MutableState<String>, isFocused: MutableState<Boolean>) {
+    fun FocusCameraScreen() {
         val context = LocalContext.current
         val lifecycleOwner = LocalLifecycleOwner.current
 
-        LaunchedEffect(Unit) {
-            if (ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.CAMERA
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                ActivityCompat.requestPermissions(
-                    this@FocusCameraActivity,
-                    arrayOf(Manifest.permission.CAMERA),
-                    10
-                )
+        var previewView by remember { mutableStateOf<PreviewView?>(null) }
+        var focusStatus by remember { mutableStateOf("Analyzing...") }
+        var isFocused by remember { mutableStateOf(false) }
+
+        // Permission launcher
+        val permissionLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted: Boolean ->
+            if (granted && previewView != null) {
+                startCamera(
+                    previewView!!, lifecycleOwner
+                ) { s, f ->
+                    focusStatus = s
+                    isFocused = f
+                }
             } else {
-                startCamera(context, lifecycleOwner)
+                focusStatus = "Camera permission required"
+            }
+        }
+
+        // Ask permission once
+        LaunchedEffect(Unit) {
+            val granted = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!granted) {
+                permissionLauncher.launch(Manifest.permission.CAMERA)
             }
         }
 
         Surface(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
+                    .padding(24.dp)
+                    .fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                // Header
+
                 FocusHeader()
 
-                // Camera Preview
-                CameraPreviewSection(context, lifecycleOwner)
+                // Camera preview
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(400.dp),
+                    shape = MaterialTheme.shapes.large,
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                ) {
+                    AndroidView(
+                        factory = { ctx ->
+                            PreviewView(ctx).apply {
+                                scaleType = PreviewView.ScaleType.FILL_CENTER
+                                previewView = this
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                        update = { view ->
+                            startCamera(
+                                view, lifecycleOwner
+                            ) { s, f ->
+                                focusStatus = s
+                                isFocused = f
+                            }
+                        }
+                    )
+                }
 
-                // Focus Status with Professional Icons
-                FocusStatusIndicator(focusStatus.value, isFocused.value)
-
-                // Tips Section
+                FocusStatus(focusStatus, isFocused)
                 FocusTips()
             }
         }
     }
 
-    @Composable
-    fun FocusHeader() {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Visibility,
-                contentDescription = "Focus Tracking",
-                modifier = Modifier.size(48.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                "Focus Tracking",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                "Maintain focus for better productivity",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-
-    @Composable
-    fun CameraPreviewSection(context: android.content.Context, lifecycleOwner: androidx.lifecycle.LifecycleOwner) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(400.dp),
-            shape = MaterialTheme.shapes.large,
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                AndroidView(
-                    modifier = Modifier.fillMaxSize(),
-                    factory = { ctx ->
-                        val previewView = PreviewView(ctx)
-                        previewView.scaleType = PreviewView.ScaleType.FILL_CENTER
-                        startCamera(ctx, lifecycleOwner, previewView)
-                        previewView
-                    }
-                )
-
-                // Overlay with camera instructions
-                Surface(
-                    color = Color.Black.copy(alpha = 0.6f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .align(Alignment.BottomCenter)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = "Info",
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "Look directly at the camera to maintain focus",
-                            color = Color.White,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    @Composable
-    fun FocusStatusIndicator(status: String, focused: Boolean) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (focused) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.errorContainer
-                }
-            ),
-            shape = MaterialTheme.shapes.medium
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = if (focused) {
-                        Icons.Default.CheckCircle
-                    } else {
-                        Icons.Default.Warning
-                    },
-                    contentDescription = "Focus Status",
-                    tint = if (focused) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.error
-                    },
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = if (focused) "Focused" else "Distracted",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (focused) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        }
-                    )
-                    Text(
-                        text = status,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-
-    @Composable
-    fun FocusTips() {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            ),
-            shape = MaterialTheme.shapes.medium
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Lightbulb,
-                        contentDescription = "Tip",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        "Focus Tips",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                FocusTipItem(
-                    icon = Icons.Default.Straighten,
-                    text = "Sit upright and maintain good posture"
-                )
-                FocusTipItem(
-                    icon = Icons.Default.RemoveRedEye,
-                    text = "Look directly at the screen"
-                )
-                FocusTipItem(
-                    icon = Icons.Default.AccessTime,
-                    text = "Take breaks every 25-30 minutes"
-                )
-            }
-        }
-    }
-
-    @Composable
-    fun FocusTipItem(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-
-    private fun startCamera(context: android.content.Context, lifecycleOwner: androidx.lifecycle.LifecycleOwner, previewView: PreviewView? = null) {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+    private fun startCamera(
+        previewView: PreviewView,
+        lifecycleOwner: androidx.lifecycle.LifecycleOwner,
+        updateStatus: (String, Boolean) -> Unit
+    ) {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
         cameraProviderFuture.addListener({
+
             val cameraProvider = cameraProviderFuture.get()
-            val preview = Preview.Builder().build().also {
-                it.setSurfaceProvider(previewView?.surfaceProvider)
+
+            val preview = Preview.Builder().build().apply {
+                setSurfaceProvider(previewView.surfaceProvider)
             }
 
-            val imageAnalyzer = ImageAnalysis.Builder()
+            val analyzer = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
-                .also {
-                    it.setAnalyzer(cameraExecutor, FrameAnalyzer())
+                .apply {
+                    setAnalyzer(cameraExecutor, FocusAnalyzer(updateStatus))
                 }
 
             try {
@@ -321,38 +156,47 @@ class FocusCameraActivity : ComponentActivity() {
                     lifecycleOwner,
                     CameraSelector.DEFAULT_FRONT_CAMERA,
                     preview,
-                    imageAnalyzer
+                    analyzer
                 )
-            } catch (exc: Exception) {
-                focusStatus.value = "Camera failed to start!"
+            } catch (e: Exception) {
+                updateStatus("Camera failed to start!", false)
             }
-        }, ContextCompat.getMainExecutor(context))
+
+        }, ContextCompat.getMainExecutor(this))
     }
 
-    inner class FrameAnalyzer : ImageAnalysis.Analyzer {
+    inner class FocusAnalyzer(
+        val updateStatus: (String, Boolean) -> Unit
+    ) : ImageAnalysis.Analyzer {
+
         private val detector = FaceDetection.getClient()
+        private var lostCount = 0
 
         override fun analyze(imageProxy: ImageProxy) {
-            val mediaImage = imageProxy.image ?: return
-            val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+            val mediaImage = imageProxy.image ?: run {
+                imageProxy.close()
+                return
+            }
+
+            val image = InputImage.fromMediaImage(
+                mediaImage,
+                imageProxy.imageInfo.rotationDegrees
+            )
 
             detector.process(image)
                 .addOnSuccessListener { faces ->
                     if (faces.isEmpty()) {
-                        focusLostCount++
-                        if (focusLostCount > 5) {
-                            focusStatus.value = "Looking away from screen"
-                            isFocused.value = false
+                        lostCount++
+                        if (lostCount > 5) {
+                            updateStatus("Looking away from screen", false)
                         }
                     } else {
-                        focusLostCount = 0
-                        focusStatus.value = "Maintaining good focus"
-                        isFocused.value = true
+                        lostCount = 0
+                        updateStatus("Maintaining good focus", true)
                     }
                 }
                 .addOnFailureListener {
-                    focusStatus.value = "Analysis error"
-                    isFocused.value = false
+                    updateStatus("Analysis error", false)
                 }
                 .addOnCompleteListener {
                     imageProxy.close()
@@ -380,4 +224,65 @@ fun FocusCameraTheme(content: @Composable () -> Unit) {
         ),
         content = content
     )
+}
+
+@Composable
+fun FocusCameraHeader() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Visibility,
+            contentDescription = null,
+            modifier = Modifier.size(48.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Text("Focus Tracking", fontWeight = FontWeight.Bold)
+        Text("Maintain focus for better productivity")
+    }
+}
+
+@Composable
+fun FocusStatus(status: String, focused: Boolean) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (focused)
+                MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = if (focused) Icons.Default.CheckCircle else Icons.Default.Warning,
+                contentDescription = null
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(if (focused) "Focused" else "Distracted", fontWeight = FontWeight.Bold)
+                Text(status)
+            }
+        }
+    }
+}
+
+@Composable
+fun FocusTips() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Focus Tips", fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(12.dp))
+            Text("• Sit upright and maintain good posture")
+            Text("• Look directly at the screen")
+            Text("• Take breaks every 25–30 minutes")
+        }
+    }
 }

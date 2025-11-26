@@ -1,16 +1,11 @@
 package com.runanywhere.classconnect.ui.chat
 
-import android.Manifest
-import android.app.Activity
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -18,377 +13,418 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.KeyboardVoice
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallTopAppBar
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
-import com.runanywhere.classconnect.util.SpeechToTextHelper
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import com.runanywhere.classconnect.viewmodels.ChatViewModel
+import com.runanywhere.classconnect.viewmodels.ChatMessage
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
+import java.util.Date
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 
-data class ChatMessage(
-    val text: String,
-    val isUser: Boolean,
-    val timestamp: Long = System.currentTimeMillis(),
-    val messageType: MessageType = MessageType.TEXT
-)
 
-enum class MessageType {
-    TEXT, CODE, SYSTEM, SUGGESTION
-}
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(navController: NavController, studentName: String = "StudyBot") {
+fun ChatScreen(
+    navController: NavController,
+    viewModel: ChatViewModel
+) {
+    val messages by viewModel.messages.collectAsState()
     var userInput by remember { mutableStateOf("") }
-    val messages = remember { mutableStateListOf<ChatMessage>() }
+    var showVersionDialog by remember { mutableStateOf(false) }
+    var selectedVersion by remember { mutableStateOf("Study Pro") }
+    var isRecording by remember { mutableStateOf(false) }
+
+    val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    val lazyListState = rememberLazyListState()
-    var isTyping by remember { mutableStateOf(false) }
-    var isListening by remember { mutableStateOf(false) }
 
-    val context = LocalContext.current
-    val activity = context as Activity
-
-    // Speech Recognizer
-    val speechHelper = remember {
-        SpeechToTextHelper(
-            activity = activity,
-            onResult = { spokenText ->
-                userInput = spokenText
-                isListening = false
-            },
-            onError = {
-                isListening = false
-            }
-        )
-    }
-
-    // Permission handling
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            isListening = true
-            speechHelper.startListening()
-        } else {
-            isListening = false
-        }
-    }
-
-    // Cleanup on dispose
-    DisposableEffect(Unit) {
-        onDispose {
-            speechHelper.destroy()
-        }
-    }
-
-    // Auto-scroll when new message
+    // Auto-scroll to bottom when new message arrives
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
-            delay(100)
-            lazyListState.animateScrollToItem(0)
+            listState.animateScrollToItem(messages.lastIndex)
         }
     }
 
-    // Welcome message
-    LaunchedEffect(Unit) {
-        if (messages.isEmpty()) {
-            delay(500)
-            messages.add(
-                ChatMessage(
-                    "👋 Hello! I'm your AI study assistant.\n\n" +
-                            "📚 I can help you with:\n" +
-                            "• Course concepts & explanations\n" +
-                            "• Study strategies & schedules\n" +
-                            "• Project ideas & guidance\n" +
-                            "• Assignment help & debugging\n" +
-                            "• Code review & optimization\n\n" +
-                            "What would you like to learn today?",
-                    false
+    Scaffold(
+        topBar = {
+            SmallTopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = "StudyBot",
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "$selectedVersion • Your AI Study Buddy",
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                },
+                actions = {
+                    // Version selector dropdown
+                    IconButton(onClick = { showVersionDialog = true }) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = "AI Version",
+                            tint = Color.White
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.smallTopAppBarColors(
+                    containerColor = Color(0xFF020617)
                 )
             )
-        }
-    }
+        },
+        containerColor = Color(0xFF020617)
+    ) { padding ->
 
-    // 🔮 Animated background
-    val infiniteTransition = rememberInfiniteTransition()
-    val shimmerOffset by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(15000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(Color(0xFF0F2027), Color(0xFF203A43), Color(0xFF2C5364)),
-                    start = androidx.compose.ui.geometry.Offset(shimmerOffset, 0f),
-                    end = androidx.compose.ui.geometry.Offset(0f, shimmerOffset)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color(0xFF020617),
+                            Color(0xFF020617),
+                            Color(0xFF0B1120)
+                        )
+                    )
                 )
-            )
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+                .padding(padding)
+        ) {
 
-            // 🌟 Enhanced Header
-            EnhancedChatHeader(navController = navController, studentName = studentName)
-
-            // 💬 Messages Area
-            Box(
+            // MESSAGES LIST
+            LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    state = lazyListState,
-                    reverseLayout = true,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(messages.reversed(), key = { it.timestamp }) { message ->
-                        EnhancedChatBubble(message = message)
-                    }
-
-                    if (isTyping) {
-                        item {
-                            TypingIndicator()
-                        }
-                    }
+                items(messages) { message ->
+                    ChatBubble(message = message)
                 }
 
-                // Scroll to bottom button
-                if (lazyListState.firstVisibleItemIndex > 5) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(16.dp)
-                    ) {
-                        FloatingActionButton(
-                            onClick = {
-                                coroutineScope.launch {
-                                    lazyListState.animateScrollToItem(0)
-                                }
-                            },
-                            containerColor = Color(0xFF66CCFF),
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(Icons.Filled.ArrowDownward, contentDescription = "Scroll to bottom")
-                        }
+                // Typing indicator when AI is responding
+                if (messages.lastOrNull()?.isUser == true) {
+                    item {
+                        TypingIndicator()
                     }
                 }
             }
 
-            // 🎙 Input Area
-            EnhancedInputArea(
-                userInput = userInput,
-                onInputChange = { userInput = it },
-                messages = messages,
-                isListening = isListening,
-                onToggleListening = {
-                    if (isListening) {
-                        isListening = false
-                        speechHelper.stopListening()
-                    } else {
-                        if (ContextCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.RECORD_AUDIO
-                            ) == PackageManager.PERMISSION_GRANTED
-                        ) {
-                            isListening = true
-                            speechHelper.startListening()
-                        } else {
-                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                        }
-                    }
-                },
-                onSendMessage = { text ->
-                    if (text.isNotBlank()) {
-                        messages.add(ChatMessage(text, true))
-                        userInput = ""
-                        isTyping = true
+            Divider(color = Color.White.copy(alpha = 0.1f))
 
-                        coroutineScope.launch {
-                            delay(300)
-                            simulateAIResponse(messages, text) {
-                                isTyping = false
+            // INPUT AREA
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+                    .navigationBarsPadding(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                // Voice Input Button
+                IconButton(
+                    onClick = {
+                        isRecording = !isRecording
+                        if (isRecording) {
+                            // Simulate voice input
+                            simulateVoiceInput(coroutineScope) { text ->
+                                userInput = text
+                                isRecording = false
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isRecording) Color(0xFFEF4444) else Color(0xFF1E293B)
+                        ),
+                ) {
+                    Icon(
+                        Icons.Default.KeyboardVoice,
+                        contentDescription = "Voice Input",
+                        tint = Color.White
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Text Input Field
+                OutlinedTextField(
+                    value = userInput,
+                    onValueChange = { userInput = it },
+                    modifier = Modifier.weight(1f),
+                    placeholder = {
+                        Text(
+                            "Message StudyBot...",
+                            color = Color.White.copy(alpha = 0.6f)
+                        )
+                    },
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        focusedBorderColor = Color(0xFF38BDF8),
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                        cursorColor = Color(0xFF38BDF8),
+                        containerColor = Color(0xFF1E293B)
+                    ),
+                    textStyle = TextStyle(color = Color.White),
+                    shape = RoundedCornerShape(24.dp),
+                    maxLines = 4,
+                    singleLine = false
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Send Button
+                IconButton(
+                    onClick = {
+                        if (userInput.isNotBlank()) {
+                            viewModel.sendMessage(userInput.trim())
+                            val textForAI = userInput.trim()
+                            userInput = ""
+
+                            // Simulate AI response after a delay
+                            simulateAIResponse(viewModel, selectedVersion, coroutineScope, textForAI)
+                        }
+                    },
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (userInput.isNotBlank())
+                                Color(0xFF2563EB)
+                            else
+                                Color(0xFF1E293B)
+                        ),
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Send",
+                        tint = Color.White
+                    )
+                }
+            }
+        }
+    }
+
+    // AI Version Selection Dialog
+    if (showVersionDialog) {
+        AlertDialog(
+            onDismissRequest = { showVersionDialog = false },
+            title = { Text("Select AI Version", color = Color.White) },
+            text = {
+                Column {
+                    listOf(
+                        "Study Basic" to "Fast responses for quick questions",
+                        "Study Pro" to "Detailed explanations with examples",
+                        "Study Expert" to "Advanced concepts & deep analysis",
+                        "Creative Helper" to "Brainstorming & project ideas"
+                    ).forEach { (version, description) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    if (selectedVersion == version)
+                                        Color(0xFF2563EB)
+                                    else
+                                        Color(0xFF1E293B)
+                                )
+                                .padding(12.dp)
+                                .clickable {
+                                    selectedVersion = version
+                                    showVersionDialog = false
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedVersion == version,
+                                onClick = {
+                                    selectedVersion = version
+                                    showVersionDialog = false
+                                },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = Color.White,
+                                    unselectedColor = Color.White.copy(0.5f)
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(version, color = Color.White, fontWeight = FontWeight.Medium)
+                                Text(
+                                    description,
+                                    color = Color.White.copy(0.7f),
+                                    fontSize = 12.sp
+                                )
                             }
                         }
                     }
                 }
-            )
-        }
-    }
-}
-
-@Composable
-fun EnhancedChatHeader(navController: NavController, studentName: String) {
-    val infiniteTransition = rememberInfiniteTransition()
-    val pulse by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
+            },
+            confirmButton = {
+                TextButton(onClick = { showVersionDialog = false }) {
+                    Text("Close", color = Color(0xFF38BDF8))
+                }
+            },
+            containerColor = Color(0xFF020617)
         )
-    )
+    }
 
-    Surface(
-        color = Color.White.copy(alpha = 0.12f),
-        tonalElevation = 8.dp,
-        shadowElevation = 16.dp
-    ) {
-        Row(
+    // Voice Recording Indicator (tap anywhere to cancel)
+    if (isRecording) {
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.7f))
+                .pointerInput(Unit) {
+                    detectTapGestures {
+                        // cancel recording on tap
+                        isRecording = false
+                    }
+                },
+            contentAlignment = Alignment.Center
         ) {
-            IconButton(
-                onClick = { navController.navigateUp() },
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(Color.White.copy(alpha = 0.1f), CircleShape)
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Color.White
-                )
-            }
-
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.padding(16.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(14.dp)
-                            .background(Color(0xFF4CAF50), CircleShape)
-                            .scale(pulse)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
+                // Animated recording indicator
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(Color.Red)
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        "💬 $studentName",
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
+                        "🎤",
+                        fontSize = 24.sp,
+                        modifier = Modifier.padding(8.dp)
                     )
                 }
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "AI Study Assistant • Online",
+                    "Listening... Speak now",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "Tap anywhere to cancel",
                     color = Color.White.copy(alpha = 0.7f),
                     fontSize = 12.sp
                 )
             }
-
-            Row {
-                IconButton(
-                    onClick = { /* Clear chat */ },
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Icon(
-                        Icons.Outlined.Delete,
-                        contentDescription = "Clear chat",
-                        tint = Color.White.copy(alpha = 0.7f)
-                    )
-                }
-            }
         }
     }
 }
 
 @Composable
-fun EnhancedChatBubble(message: ChatMessage) {
+fun ChatBubble(message: ChatMessage) {
     val isUser = message.isUser
 
-    val bubbleColor = if (isUser)
-        Brush.linearGradient(listOf(Color(0xFF667EEA), Color(0xFF764BA2)))
-    else
-        Brush.linearGradient(listOf(Color(0xFF4CA1AF), Color(0xFF2C3E50)))
+    val bubbleColor = if (isUser) {
+        // User – Blue bubble (iMessage style)
+        Color(0xFF2563EB)
+    } else {
+        // Bot – Dark grey bubble
+        Color(0xFF1F2933)
+    }
 
-    val align = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
-    val bubbleShape = if (isUser)
-        RoundedCornerShape(20.dp, 8.dp, 20.dp, 20.dp)
-    else
-        RoundedCornerShape(8.dp, 20.dp, 20.dp, 20.dp)
+    val bubbleShape = if (isUser) {
+        RoundedCornerShape(
+            topStart = 18.dp,
+            topEnd = 4.dp,
+            bottomEnd = 18.dp,
+            bottomStart = 18.dp
+        )
+    } else {
+        RoundedCornerShape(
+            topStart = 4.dp,
+            topEnd = 18.dp,
+            bottomEnd = 18.dp,
+            bottomStart = 18.dp
+        )
+    }
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 2.dp),
-        contentAlignment = align
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
     ) {
-        Column(
-            horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
-            modifier = Modifier.widthIn(max = 320.dp)
-        ) {
-            Surface(
-                tonalElevation = 4.dp,
-                shadowElevation = 8.dp,
-                shape = bubbleShape,
-                color = Color.Transparent
-            ) {
-                Box(
-                    modifier = Modifier
-                        .clip(bubbleShape)
-                        .background(bubbleColor)
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                ) {
-                    Column {
-                        if (message.messageType == MessageType.CODE) {
-                            Text(
-                                text = message.text,
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                modifier = Modifier
-                                    .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                                    .padding(12.dp)
-                            )
-                        } else {
-                            Text(
-                                text = message.text,
-                                color = Color.White,
-                                fontSize = 15.sp,
-                                lineHeight = 20.sp,
-                                modifier = Modifier.padding(2.dp)
-                            )
-                        }
-                    }
-                }
-            }
 
+        Box(
+            modifier = Modifier
+                .clip(bubbleShape)
+                .background(bubbleColor)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .widthIn(max = 280.dp)
+        ) {
             Text(
-                text = formatTime(message.timestamp),
-                color = Color.White.copy(alpha = 0.5f),
-                fontSize = 10.sp,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                text = message.text,
+                color = Color.White,
+                fontSize = 15.sp,
+                lineHeight = 20.sp
             )
         }
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        Text(
+            text = formatTime(message.timestamp),
+            fontSize = 10.sp,
+            color = Color.White.copy(alpha = 0.5f),
+            modifier = Modifier.padding(
+                start = if (isUser) 0.dp else 4.dp,
+                end = if (isUser) 4.dp else 0.dp
+            )
+        )
     }
 }
 
@@ -396,304 +432,141 @@ fun EnhancedChatBubble(message: ChatMessage) {
 fun TypingIndicator() {
     Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.Start
+            .padding(start = 12.dp, top = 8.dp, bottom = 8.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(Color(0xFF1F2933))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Surface(
-            color = Color.White.copy(alpha = 0.1f),
-            shape = RoundedCornerShape(20.dp),
-            tonalElevation = 4.dp
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "AI is typing",
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 12.sp
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                TypingDots()
+        // Animated typing dots
+        val dotAlpha = remember { Animatable(0.3f) }
+
+        LaunchedEffect(Unit) {
+            while (true) {
+                dotAlpha.animateTo(1f, animationSpec = tween(500))
+                dotAlpha.animateTo(0.3f, animationSpec = tween(500))
             }
         }
-    }
-}
 
-@Composable
-fun TypingDots() {
-    val infiniteTransition = rememberInfiniteTransition()
-
-    val dot1Alpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = keyframes {
-                this.durationMillis = 1200
-                0.3f at 0
-                1f at 400
-                0.3f at 800
-            }
-        )
-    )
-
-    val dot2Alpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = keyframes {
-                this.durationMillis = 1200
-                0.3f at 200
-                1f at 600
-                0.3f at 1000
-            }
-        )
-    )
-
-    val dot3Alpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = keyframes {
-                this.durationMillis = 1200
-                0.3f at 400
-                1f at 800
-                0.3f at 1200
-            }
-        )
-    )
-
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .background(Color.White.copy(alpha = dot1Alpha), CircleShape)
-        )
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .background(Color.White.copy(alpha = dot2Alpha), CircleShape)
-        )
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .background(Color.White.copy(alpha = dot3Alpha), CircleShape)
-        )
-    }
-}
-
-@Composable
-fun EnhancedInputArea(
-    userInput: String,
-    onInputChange: (String) -> Unit,
-    messages: List<ChatMessage>,
-    isListening: Boolean,
-    onToggleListening: () -> Unit,
-    onSendMessage: (String) -> Unit
-) {
-    val pulse by rememberInfiniteTransition().animateFloat(
-        initialValue = 1f,
-        targetValue = 1.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        )
-    )
-
-    Surface(
-        color = Color.White.copy(alpha = 0.08f),
-        tonalElevation = 12.dp,
-        shadowElevation = 16.dp
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            val hasUserMessages = messages.any { it.isUser }
-            if (!hasUserMessages && userInput.isEmpty()) {
-                EnhancedQuickSuggestions(onSuggestionClick = onInputChange)
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = onToggleListening,
-                    modifier = Modifier
-                        .size(52.dp)
-                        .scale(if (isListening) pulse else 1f)
-                        .background(
-                            if (isListening) Color.Red.copy(alpha = 0.2f)
-                            else Color(0xFF66CCFF).copy(alpha = 0.2f),
-                            CircleShape
-                        )
-                ) {
-                    Icon(
-                        Icons.Default.Mic,
-                        contentDescription = if (isListening) "Stop listening" else "Start voice input",
-                        tint = if (isListening) Color.Red else Color(0xFF66CCFF),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                OutlinedTextField(
-                    modifier = Modifier
-                        .weight(1f)
-                        .background(Color.Transparent),
-                    value = userInput,
-                    onValueChange = onInputChange,
-                    placeholder = {
-                        Text(
-                            if (isListening) "Listening... Speak now" else "Ask anything about your studies...",
-                            color = Color.White.copy(alpha = 0.6f)
-                        )
-                    },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.White.copy(alpha = 0.12f),
-                        unfocusedContainerColor = Color.White.copy(alpha = 0.08f),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        cursorColor = Color(0xFF66CCFF),
-                        focusedIndicatorColor = Color(0xFF66CCFF),
-                        unfocusedIndicatorColor = Color.White.copy(alpha = 0.3f)
-                    ),
-                    shape = RoundedCornerShape(25.dp),
-                    singleLine = false,
-                    maxLines = 4
-                )
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                FloatingActionButton(
-                    onClick = { onSendMessage(userInput) },
-                    containerColor = if (userInput.isNotBlank()) Color(0xFF66CCFF) else Color.White.copy(alpha = 0.2f),
-                    modifier = Modifier.size(56.dp)
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Send, // Fixed deprecated icon
-                        contentDescription = "Send",
-                        tint = if (userInput.isNotBlank()) Color.White else Color.White.copy(alpha = 0.5f)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun EnhancedQuickSuggestions(onSuggestionClick: (String) -> Unit) {
-    val suggestions = listOf(
-        "Explain machine learning basics in simple terms",
-        "Help me create a study schedule for finals",
-        "What are good project ideas for AI course?",
-        "How to improve my coding skills effectively?"
-    )
-
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Text(
-            "💡 Try asking:",
-            color = Color.White.copy(alpha = 0.8f),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(bottom = 12.dp)
+            "StudyBot is typing",
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 12.sp
         )
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            items(suggestions) { suggestion ->
-                Surface(
-                    color = Color.White.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(20.dp),
-                    onClick = { onSuggestionClick(suggestion) },
+        Spacer(modifier = Modifier.width(8.dp))
+        Row {
+            repeat(3) {
+                Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                ) {
-                    Text(
-                        text = suggestion,
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        textAlign = TextAlign.Center
-                    )
-                }
+                        .size(4.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = dotAlpha.value))
+                        .padding(end = 2.dp)
+                )
             }
         }
     }
 }
 
-suspend fun simulateAIResponse(messages: MutableList<ChatMessage>, input: String, onComplete: () -> Unit) {
-    val thinking = ChatMessage("⏳ Thinking...", false)
-    messages.add(thinking)
-    delay(1200 + (input.length * 8L))
-    messages.remove(thinking)
-    val response = generateEnhancedAIResponse(input)
-    messages.add(ChatMessage(response, false))
-    onComplete()
+// Simulate voice input (in real app, integrate with Speech-to-Text API)
+private fun simulateVoiceInput(
+    coroutineScope: CoroutineScope,
+    onResult: (String) -> Unit
+) {
+    coroutineScope.launch {
+        kotlinx.coroutines.delay(2000L) // 2 second delay to simulate listening
+
+        // Sample responses based on common study queries
+        val sampleResponses = listOf(
+            "Can you explain quantum physics in simple terms?",
+            "I need help with my calculus homework on derivatives",
+            "What's the best way to study for finals?",
+            "Can you create a study schedule for my exams?",
+            "Explain the water cycle with a diagram"
+        )
+
+        onResult(sampleResponses.random())
+    }
 }
 
-fun generateEnhancedAIResponse(input: String): String {
-    val lower = input.lowercase()
-    return when {
-        "machine learning" in lower || "ml" in lower ->
-            "🤖 **Machine Learning Basics**\n\n" +
-                    "ML enables computers to learn from data without explicit programming. Key concepts:\n\n" +
-                    "• **Supervised Learning**: Labeled data (classification, regression)\n" +
-                    "• **Unsupervised Learning**: Unlabeled data (clustering, dimensionality reduction)\n" +
-                    "• **Reinforcement Learning**: Learn through rewards/punishments\n\n" +
-                    "Popular libraries: TensorFlow, PyTorch, Scikit-learn"
+// Simulate AI response based on selected version
+private fun simulateAIResponse(
+    viewModel: ChatViewModel,
+    version: String,
+    coroutineScope: CoroutineScope,
+    userMessage: String
+) {
+    coroutineScope.launch {
+        // Simulate AI thinking time
+        kotlinx.coroutines.delay(1500L)
 
-        "dbms" in lower || "database" in lower ->
-            "🗄️ **Database Management Systems**\n\n" +
-                    "DBMS manages data storage, retrieval, and manipulation efficiently:\n\n" +
-                    "• **SQL**: Structured Query Language for database operations\n" +
-                    "• **Normalization**: Reduces data redundancy (1NF to 5NF)\n" +
-                    "• **Indexing**: Improves query performance\n" +
-                    "• **ACID Properties**: Atomicity, Consistency, Isolation, Durability\n\n" +
-                    "Need help with a specific DBMS concept?"
+        // Generate different responses based on AI version
+        val response = when (version) {
+            "Study Basic" -> generateBasicResponse()
+            "Study Pro" -> generateProResponse()
+            "Study Expert" -> generateExpertResponse()
+            "Creative Helper" -> generateCreativeResponse()
+            else -> generateProResponse()
+        }
 
-        "schedule" in lower || "study plan" in lower ->
-            "📅 **Effective Study Scheduling**\n\n" +
-                    "**Pomodoro Technique**:\n" +
-                    "• 25min focused study + 5min break\n" +
-                    "• After 4 sessions, take 15-30min break\n\n" +
-                    "**Spaced Repetition**:\n" +
-                    "• Review material at increasing intervals\n" +
-                    "• Use apps like Anki for flashcards\n\n" +
-                    "**Weekly Planning**:\n" +
-                    "• Dedicate specific times for each subject\n" +
-                    "• Include buffer time for revisions"
-
-        "project" in lower || "project idea" in lower ->
-            "💡 **AI Project Ideas**\n\n" +
-                    "**Beginner**:\n" +
-                    "• Sentiment Analysis on social media\n" +
-                    "• Chatbot for FAQs\n" +
-                    "• Image classification\n\n" +
-                    "**Intermediate**:\n" +
-                    "• Recommendation system\n" +
-                    "• Stock price prediction\n" +
-                    "• Face recognition system\n\n" +
-                    "**Advanced**:\n" +
-                    "• Autonomous vehicle simulation\n" +
-                    "• Medical diagnosis assistant\n" +
-                    "• Real-time object detection"
-
-        else ->
-            "That's an interesting question! 🌟\n\n" +
-                    "I'd be happy to help you with that. Could you provide more details about what specific aspect you'd like me to explain?\n\n" +
-                    "For example:\n" +
-                    "• Are you looking for basic concepts or advanced details?\n" +
-                    "• Do you need practical examples or theoretical explanations?\n" +
-                    "• Is this for a specific project or assignment?"
+        // Add bot message to ViewModel
+        viewModel.addMessage(
+            ChatMessage(
+                text = response,
+                isUser = false,
+                timestamp = System.currentTimeMillis()
+            )
+        )
     }
+}
+
+private fun generateBasicResponse(): String {
+    return "I can help with that! Here's a quick explanation:\n\n" +
+            "• Key points summarized\n" +
+            "• Easy to understand\n" +
+            "• Perfect for quick revision"
+}
+
+private fun generateProResponse(): String {
+    return "Great question! Let me break this down for you:\n\n" +
+            "**Detailed Explanation:**\n" +
+            "This concept involves multiple aspects that work together. First, we have the fundamental principles...\n\n" +
+            "**Examples:**\n" +
+            "1. Real-world application example\n" +
+            "2. Step-by-step breakdown\n" +
+            "3. Common mistakes to avoid\n\n" +
+            "**Practice Tip:** Try applying this to different scenarios to reinforce your understanding!"
+}
+
+private fun generateExpertResponse(): String {
+    return "Excellent query! Let's dive deep into this advanced topic:\n\n" +
+            "**Advanced Analysis:**\n" +
+            "From a theoretical perspective, this connects to several complex concepts including...\n\n" +
+            "**Mathematical Foundation:**\n" +
+            "• Advanced formulas and derivations\n" +
+            "• Interdisciplinary connections\n" +
+            "• Research-level insights\n\n" +
+            "**Critical Thinking:** Consider how this applies to cutting-edge research and future developments."
+}
+
+private fun generateCreativeResponse(): String {
+    return "Love the creative angle! Here are some innovative ideas:\n\n" +
+            "💡 **Brainstorming Session:**\n" +
+            "• Unconventional approaches\n" +
+            "• Cross-disciplinary connections\n" +
+            "• Out-of-the-box solutions\n\n" +
+            "🎨 **Project Ideas:**\n" +
+            "1. Interactive visualization\n" +
+            "2. Creative presentation format\n" +
+            "3. Real-world implementation plan\n\n" +
+            "Let's build something amazing together!"
 }
 
 fun formatTime(timestamp: Long): String {
-    val sdf = SimpleDateFormat("hh:mm a", Locale.getDefault())
-    return sdf.format(Date(timestamp))
+    return try {
+        val sdf = SimpleDateFormat("hh:mm a", Locale.getDefault())
+        sdf.format(Date(timestamp))
+    } catch (e: Exception) {
+        ""
+    }
 }

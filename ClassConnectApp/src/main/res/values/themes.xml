@@ -1,1 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?> <resources> <style name="Theme.Startup_hackathon20" parent="android:Theme.Material.Light.NoActionBar" /> </resources>
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Main App Theme -->
+    <style name="Theme.Startup_hackathon20" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- Transparent overlay theme for ReminderOverlayActivity -->
+    <style name="Theme.TransparentOverlay" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
+
+
+
+</resources>

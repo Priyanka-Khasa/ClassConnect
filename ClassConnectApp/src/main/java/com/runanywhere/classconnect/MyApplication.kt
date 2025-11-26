@@ -27,7 +27,7 @@ class MyApplication : Application() {
             RunAnywhere.initialize(
                 context = this@MyApplication,
                 apiKey = "dev",  // Any string works in dev mode
-                environment = SDKEnvironment.DEVELOPMENT
+                environment = SDKEnvironment.PRODUCTION
             )
 
             // Step 2: Register LLM Service Provider
