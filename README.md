@@ -6,7 +6,7 @@ Built using Jetpack Compose, MVVM, Kotlin Coroutines, and the RunAnywhere on-dev
 ---
 
 ## Project Demo  
-https://drive.google.com/file/d/1M3x0XT4WMTNnC1SaD1DtTrfV4OiB3vVF/view?usp=sharing
+https://www.linkedin.com/posts/activity-7399365166552887296-v1Fd?utm_source=share&utm_medium=member_desktop&rcm=ACoAAFMwTvkB6VyWWLx1h1_lvERPZeYlJEuO97g
 
 ---
 
