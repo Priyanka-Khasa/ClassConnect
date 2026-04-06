@@ -179,7 +179,7 @@ Android Developer | AI Innovator | Open Source Contributor
 Haryana, India
 
 GitHub: Priyanka-Khasa
-LinkedIn: add your link here
+LinkedIn: https://www.linkedin.com/in/priyanka-khasa/
 
 License
 
